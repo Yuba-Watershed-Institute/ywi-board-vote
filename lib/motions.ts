@@ -141,8 +141,17 @@ export async function closeMotion(admin: Member, motionId: number) {
 }
 
 export async function reopenMotion(admin: Member, motionId: number) {
-  await q("UPDATE motions SET status = 'open', closed_at = NULL WHERE id = $1 AND status = 'closed'", [motionId]);
-  await audit(admin.email, "motion_reopened", `#${motionId}`);
+  // Reopening also clears the deadline; otherwise a past deadline would lock voting again immediately.
+  await q("UPDATE motions SET status = 'open', closed_at = NULL, closes_at = NULL WHERE id = $1 AND status = 'closed'", [motionId]);
+  await audit(admin.email, "motion_reopened", `#${motionId} (deadline cleared)`);
+}
+
+/** Admin sets or clears the voting deadline on a motion that is open (or moved, awaiting a second). */
+export async function setDeadline(admin: Member, motionId: number, closes_at: string | null) {
+  const m = await one<Motion>("SELECT * FROM motions WHERE id = $1", [motionId]);
+  if (!m || (m.status !== "open" && m.status !== "moved")) throw new Error("Only an open motion can have its deadline changed.");
+  await q("UPDATE motions SET closes_at = $2 WHERE id = $1", [motionId, closes_at]);
+  await audit(admin.email, "deadline_changed", `#${motionId} ${closes_at ? "-> " + closes_at : "cleared"}`);
 }
 
 export async function listMembers(): Promise<Member[]> {

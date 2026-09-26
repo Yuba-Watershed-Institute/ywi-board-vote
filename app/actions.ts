@@ -5,7 +5,7 @@ import { revalidatePath } from "next/cache";
 import { requestMagicLink, requireAdmin, requireMember } from "@/lib/auth";
 import {
   castVote, closeMotion, createDraft, editDraft, moveMotion, reopenMotion,
-  secondMotion, upsertMember, withdrawMotion,
+  secondMotion, setDeadline, upsertMember, withdrawMotion,
 } from "@/lib/motions";
 
 /** "2026-09-30T17:00" typed as Pacific wall-clock time -> UTC Date. */
@@ -18,6 +18,16 @@ function pacificToUtc(local: string): Date {
 }
 
 const str = (fd: FormData, k: string) => String(fd.get(k) ?? "").trim();
+
+/** Parse an optional datetime-local deadline; reject one that is already past (a phone picker often defaults to "now"). */
+function deadlineFrom(fd: FormData): string | null {
+  const local = str(fd, "closes_at");
+  if (!local) return null;
+  const d = pacificToUtc(local);
+  if (isNaN(d.getTime())) throw new Error("The voting deadline isn't a valid date.");
+  if (d.getTime() < Date.now() + 60 * 60_000) throw new Error("The voting deadline must be at least an hour in the future. Leave it blank for no deadline.");
+  return d.toISOString();
+}
 
 function refresh(id?: number) {
   revalidatePath("/motions");
@@ -42,10 +52,9 @@ export async function proposeAction(formData: FormData) {
   const title = str(formData, "title");
   if (!title) throw new Error("Title required");
   const body = str(formData, "body");
-  const closes = str(formData, "closes_at");
   let id: number;
   if (formData.get("move_now") === "on" && member.is_voting) {
-    id = await moveMotion(member, { title, body, closes_at: closes ? pacificToUtc(closes).toISOString() : null });
+    id = await moveMotion(member, { title, body, closes_at: deadlineFrom(formData) });
   } else {
     id = await createDraft(member, { title, body, draft_note: str(formData, "draft_note") });
   }
@@ -65,12 +74,11 @@ export async function editDraftAction(formData: FormData) {
 export async function moveAction(formData: FormData) {
   const member = await requireMember();
   const id = Number(formData.get("motion_id"));
-  const closes = str(formData, "closes_at");
   await moveMotion(member, {
     motionId: id,
     title: str(formData, "title"),
     body: str(formData, "body"),
-    closes_at: closes ? pacificToUtc(closes).toISOString() : null,
+    closes_at: deadlineFrom(formData),
   });
   refresh(id);
   redirect(`/motions/${id}`);
@@ -110,6 +118,20 @@ export async function closeMotionAction(formData: FormData) {
   redirect(`/motions/${id}`);
 }
 
+export async function setDeadlineAction(formData: FormData) {
+  const admin = await requireAdmin();
+  const id = Number(formData.get("motion_id"));
+  await setDeadline(admin, id, deadlineFrom(formData));
+  refresh(id);
+  redirect(`/motions/${id}`);
+}
+export async function clearDeadlineAction(formData: FormData) {
+  const admin = await requireAdmin();
+  const id = Number(formData.get("motion_id"));
+  await setDeadline(admin, id, null);
+  refresh(id);
+  redirect(`/motions/${id}`);
+}
 export async function reopenMotionAction(formData: FormData) {
   const admin = await requireAdmin();
   const id = Number(formData.get("motion_id"));
