@@ -57,11 +57,13 @@ Motions have a life cycle: Suggested (draft) > Moved > Open for voting > Closed.
 
 1. Anyone signed in, including you, can suggest a motion from the Motions page: wording, optional
    details, optional note to the board. It sits under "Suggested" until a director picks it up.
-2. Any voting director opens the draft and clicks "Move this motion", either as written or after
-   editing the wording (edits are recorded as an amendment of the draft). A director can also write
-   and move a new motion in one step with the "Move it now" box.
-3. A different voting director clicks "Second". That opens voting automatically and prompts the
-   seconder to vote. Moving or seconding does not record a vote; everyone clicks Aye/Nay/Abstain.
+2. Any voting director opens the draft and moves it, either as written or after editing the wording
+   (edits are recorded as an amendment of the draft). The mover picks Aye, Nay, or Abstain in the same
+   click ("Move and vote Aye"); that vote is held until a second opens voting, then recorded. A director
+   can also write and move a new motion in one step with the "Move it now" box.
+3. A different voting director clicks "Second and vote Aye" (or Nay, or Abstain). That opens voting,
+   records the seconder's vote and the mover's held vote, and emails the mover that voting is open.
+   Everyone else clicks Aye/Nay/Abstain on the motion page. Any vote can be changed until the motion closes.
 4. Email the board a heads-up with the site link when something needs a second or a vote. The motion
    page shows who has and hasn't voted.
 5. When all votes are in (or the deadline passes), an admin clicks "Close voting" and downloads the

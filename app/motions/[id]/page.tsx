@@ -41,13 +41,17 @@ export default async function MotionPage({ params }: { params: Promise<{ id: str
       {m.status === "draft" && member.is_voting && (
         <div className="card">
           <h3>Move this motion</h3>
-          <p className="muted small">Moving puts the motion in your name. Leave the wording as is to move it as written, or edit it first; edits are recorded as an amendment of the draft. Another director must second it before voting opens.</p>
+          <p className="muted small">Moving puts the motion in your name. Leave the wording as is to move it as written, or edit it first; edits are recorded as an amendment of the draft. Another director must second it before voting opens. Your vote is declared now and recorded at the second; you can change it until the motion closes.</p>
           <form action={moveAction} className="stack">
             {hidden("motion_id", m.id)}
             <label>Motion <input type="text" name="title" required defaultValue={m.title} /></label>
             <label>Details <textarea name="body" defaultValue={m.body} /></label>
             <label>Voting deadline <small>Optional, Pacific time. Leave blank for no deadline; a deadline that has already passed is rejected.</small><input type="datetime-local" name="closes_at" /></label>
-            <div><button className="primary" type="submit">Move this motion</button></div>
+            <div className="row">
+              <button className="primary" type="submit" name="choice" value="aye">Move and vote Aye</button>
+              <button className="secondary" type="submit" name="choice" value="nay">Move and vote Nay</button>
+              <button className="secondary" type="submit" name="choice" value="abstain">Move and abstain</button>
+            </div>
           </form>
         </div>
       )}
@@ -73,11 +77,18 @@ export default async function MotionPage({ params }: { params: Promise<{ id: str
           <h3>Second</h3>
           {member.is_voting && !isMover ? (
             <>
-              <p className="muted small">Seconding opens the vote to the whole board. It doesn&apos;t record a vote for you; you&apos;ll be asked to vote next.</p>
-              <form action={secondAction}>{hidden("motion_id", m.id)}<button className="primary" type="submit">Second this motion</button></form>
+              <p className="muted small">Seconding opens the vote to the whole board and records your vote in the same step. You can change your vote until the motion closes.</p>
+              <form action={secondAction}>
+                {hidden("motion_id", m.id)}
+                <div className="row">
+                  <button className="primary" type="submit" name="choice" value="aye">Second and vote Aye</button>
+                  <button className="secondary" type="submit" name="choice" value="nay">Second and vote Nay</button>
+                  <button className="secondary" type="submit" name="choice" value="abstain">Second and abstain</button>
+                </div>
+              </form>
             </>
           ) : isMover ? (
-            <p className="muted small">You moved this. Voting opens when another director seconds it.</p>
+            <p className="muted small">You moved this{m.mover_choice ? ` and declared a vote of ${m.mover_choice}` : ""}. Voting opens when another director seconds it{m.mover_choice ? ", and your vote is recorded then" : ""}. You&apos;ll get an email when that happens.</p>
           ) : (
             <p className="muted small">Waiting for a director other than the mover to second.</p>
           )}

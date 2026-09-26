@@ -1,4 +1,6 @@
 import { q, one, audit, type Motion, type Member, type Vote } from "./db";
+import { sendMail } from "./mail";
+import { appUrl } from "./auth";
 
 export type MotionDetail = Motion & {
   drafter_name: string | null;
@@ -67,8 +69,9 @@ export async function editDraft(member: Member, motionId: number, input: { title
  * A voting director takes ownership of a draft. If they changed the wording, it is recorded as amended
  * from the draft. Passing no draft id creates and moves a brand-new motion in one step.
  */
-export async function moveMotion(member: Member, input: { motionId?: number; title: string; body: string; closes_at: string | null }) {
+export async function moveMotion(member: Member, input: { motionId?: number; title: string; body: string; closes_at: string | null; choice: Vote["choice"] }) {
   if (!member.is_voting) throw new Error("Only voting directors can move a motion.");
+  if (!["aye", "nay", "abstain"].includes(input.choice)) throw new Error("Choose Aye, Nay, or Abstain when you move a motion; it is recorded once a director seconds.");
   const title = input.title.trim(), body = input.body.trim();
   if (!title) throw new Error("A motion needs wording.");
   let id = input.motionId;
@@ -78,26 +81,27 @@ export async function moveMotion(member: Member, input: { motionId?: number; tit
     const amended = m.title.trim() !== title || m.body.trim() !== body;
     await q(
       `UPDATE motions SET title=$2, body=$3, amended=$4, status='moved',
-              moved_by=$5, moved_by_id=$6, moved_at=now(), closes_at=$7
+              moved_by=$5, moved_by_id=$6, moved_at=now(), closes_at=$7, mover_choice=$8
         WHERE id=$1 AND status='draft'`,
-      [id, title, body, amended, displayName(member), member.id, input.closes_at || null],
+      [id, title, body, amended, displayName(member), member.id, input.closes_at || null, input.choice],
     );
-    await audit(member.email, "motion_moved", `#${id}${amended ? " (amended from draft)" : ""}`);
+    await audit(member.email, "motion_moved", `#${id}${amended ? " (amended from draft)" : ""}, mover's vote ${input.choice}`);
   } else {
     const row = await one<{ id: number }>(
-      `INSERT INTO motions (title, body, status, drafted_by, created_by, moved_by, moved_by_id, moved_at, closes_at)
-       VALUES ($1,$2,'moved',$3,$3,$4,$3,now(),$5) RETURNING id`,
-      [title, body, member.id, displayName(member), input.closes_at || null],
+      `INSERT INTO motions (title, body, status, drafted_by, created_by, moved_by, moved_by_id, moved_at, closes_at, mover_choice)
+       VALUES ($1,$2,'moved',$3,$3,$4,$3,now(),$5,$6) RETURNING id`,
+      [title, body, member.id, displayName(member), input.closes_at || null, input.choice],
     );
     id = row!.id;
-    await audit(member.email, "motion_moved", `#${id} ${title}`);
+    await audit(member.email, "motion_moved", `#${id} ${title}, mover's vote ${input.choice}`);
   }
   return id;
 }
 
 /** A different voting director seconds; that opens the vote. */
-export async function secondMotion(member: Member, motionId: number) {
+export async function secondMotion(member: Member, motionId: number, choice: Vote["choice"]) {
   if (!member.is_voting) throw new Error("Only voting directors can second a motion.");
+  if (!["aye", "nay", "abstain"].includes(choice)) throw new Error("Choose Aye, Nay, or Abstain when you second a motion.");
   const m = await one<Motion>("SELECT * FROM motions WHERE id = $1", [motionId]);
   if (!m || m.status !== "moved") throw new Error("This motion isn't waiting for a second.");
   if (m.moved_by_id === member.id) throw new Error("The mover can't second their own motion.");
@@ -107,6 +111,34 @@ export async function secondMotion(member: Member, motionId: number) {
     [motionId, displayName(member), member.id],
   );
   await audit(member.email, "motion_seconded", `#${motionId} (voting opened)`);
+
+  // Voting is open now: record the mover's declared vote, then the seconder's.
+  const insertVote = `INSERT INTO votes (motion_id, member_id, choice) VALUES ($1,$2,$3)
+     ON CONFLICT (motion_id, member_id) DO UPDATE SET choice = EXCLUDED.choice, cast_at = now(), source = 'app'`;
+  const mover = m.moved_by_id ? await one<Member>("SELECT * FROM members WHERE id = $1", [m.moved_by_id]) : null;
+  if (m.mover_choice && mover) {
+    await q(insertVote, [motionId, mover.id, m.mover_choice]);
+    await audit(mover.email, "vote", `#${motionId} ${m.mover_choice} (declared at the move, recorded at the second)`);
+  }
+  await q(insertVote, [motionId, member.id, choice]);
+  await audit(member.email, "vote", `#${motionId} ${choice} (with second)`);
+
+  // Tell the mover voting is open. Mail failure must not undo the second.
+  {
+    if (mover?.email) {
+      const link = `${appUrl()}/motions/${motionId}`;
+      const recorded = m.mover_choice ? `Your vote of ${m.mover_choice} was recorded when the second came in; you can change it until the motion closes.` : "You haven't voted yet.";
+      try {
+        await sendMail({
+          to: mover.email,
+          subject: `Seconded: ${m.title.length > 80 ? m.title.slice(0, 77) + "..." : m.title}`,
+          text: `Hi ${mover.name},\n\n${displayName(member)} seconded your motion, so voting is open:\n\n${link}\n\n${recorded}\n\nYuba Watershed Institute`,
+        });
+      } catch (err) {
+        await audit("system", "mail_failed", `#${motionId} mover notice: ${err instanceof Error ? err.message : String(err)}`);
+      }
+    }
+  }
 }
 
 /** Mover withdraws before a second; drafter or admin withdraws a draft. */
