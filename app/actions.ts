@@ -4,7 +4,7 @@ import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { requestMagicLink, requireAdmin, requireMember } from "@/lib/auth";
 import {
-  castVote, closeMotion, createDraft, editDraft, moveMotion, reopenMotion,
+  castVote, closeMotion, correctDetails, createDraft, editDraft, moveMotion, reopenMotion,
   secondMotion, setDeadline, upsertMember, withdrawMotion,
 } from "@/lib/motions";
 
@@ -123,6 +123,13 @@ export async function closeMotionAction(formData: FormData) {
   redirect(`/motions/${id}`);
 }
 
+export async function correctDetailsAction(formData: FormData) {
+  const admin = await requireAdmin();
+  const id = Number(formData.get("motion_id"));
+  await correctDetails(admin, id, { body: str(formData, "body"), note: str(formData, "note") });
+  refresh(id);
+  redirect(`/motions/${id}`);
+}
 export async function setDeadlineAction(formData: FormData) {
   const admin = await requireAdmin();
   const id = Number(formData.get("motion_id"));

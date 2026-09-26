@@ -57,6 +57,7 @@ export async function writtenConsentPdf(m: MotionDetail): Promise<Uint8Array> {
   line("Motion", { size: 11, font: bold, gap: 6 });
   para(m.title, 11, bold);
   if (m.body) { y -= 2; para(m.body); }
+  if (m.details_corrected_at) { y -= 2; para(`Details corrected by ${m.details_corrected_by}, ${fmt(m.details_corrected_at)}: ${m.details_correction}. Motion wording unchanged.`, 9); }
   y -= 4;
   if (m.drafter_name && m.drafted_by !== m.moved_by_id) {
     line(`Drafted by ${m.drafter_name}, ${fmt(m.drafted_at)}${m.amended ? "; wording amended by the mover" : ""}`, { size: 10, color: grey });

@@ -3,7 +3,7 @@ import { notFound, redirect } from "next/navigation";
 import { currentMember } from "@/lib/auth";
 import { getMotion } from "@/lib/motions";
 import VoteButtons from "../vote-buttons";
-import { clearDeadlineAction, closeMotionAction, editDraftAction, moveAction, reopenMotionAction, secondAction, setDeadlineAction, withdrawAction } from "../../actions";
+import { clearDeadlineAction, closeMotionAction, correctDetailsAction, editDraftAction, moveAction, reopenMotionAction, secondAction, setDeadlineAction, withdrawAction } from "../../actions";
 
 export const dynamic = "force-dynamic";
 
@@ -34,7 +34,9 @@ export default async function MotionPage({ params }: { params: Promise<{ id: str
         {m.closes_at && <>Deadline {fmt(m.closes_at)}. </>}
         {m.closed_at && m.status !== "withdrawn" && <>Closed {fmt(m.closed_at)}. </>}
       </div>
-      {m.body && <div className="card"><pre className="body">{m.body}</pre></div>}
+      {m.body && <div className="card"><pre className="body">{m.body}</pre>
+        {m.details_corrected_at && <p className="muted small" style={{ marginTop: 8 }}>Details corrected by {m.details_corrected_by} {fmt(m.details_corrected_at)}: {m.details_correction}. The motion wording is unchanged.</p>}
+      </div>}
       {m.draft_note && m.status === "draft" && <div className="notice">Note from {m.drafter_name}: {m.draft_note}</div>}
 
       {/* DRAFT: directors can move it; drafter/admin can edit or withdraw */}
@@ -142,6 +144,19 @@ export default async function MotionPage({ params }: { params: Promise<{ id: str
           <p className="small" style={{ marginTop: 12 }}>
             <a className="button" href={`/motions/${m.id}/consent.pdf`}>Download written-consent PDF</a>
           </p>
+        </div>
+      )}
+
+      {member.is_admin && (m.status === "open" || m.status === "moved") && (
+        <div className="card">
+          <h3>Correct the details</h3>
+          <p className="muted small">For clerical corrections to the background text after the motion has been moved. The motion wording above is frozen once seconded and can&apos;t be changed here; to change it, withdraw and re-move. The correction note is shown to the board and on the written-consent PDF, and the previous text is kept in the activity log.</p>
+          <form action={correctDetailsAction} className="stack">
+            {hidden("motion_id", m.id)}
+            <label>Details <textarea name="body" defaultValue={m.body} rows={12} /></label>
+            <label>What was corrected <small>One sentence, shown to the board.</small><input type="text" name="note" required /></label>
+            <div><button className="secondary" type="submit">Save correction</button></div>
+          </form>
         </div>
       )}
 
