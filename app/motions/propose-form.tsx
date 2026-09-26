@@ -17,6 +17,13 @@ export default function ProposeForm({ canMove }: { canMove: boolean }) {
           <label className="checks" style={{ fontWeight: 600 }}>
             <span><input type="checkbox" name="move_now" /> Move it now, in my name (skips the draft stage)</span>
           </label>
+          <label>Your vote <small>Required if you move it now. Recorded when another director seconds; you can change it until the motion closes.</small>
+            <span className="checks">
+              <span><input type="radio" name="choice" value="aye" /> Aye</span>
+              <span><input type="radio" name="choice" value="nay" /> Nay</span>
+              <span><input type="radio" name="choice" value="abstain" /> Abstain</span>
+            </span>
+          </label>
           <label>Voting deadline <small>Optional, Pacific time. Only used if you move it now.</small>
             <input type="datetime-local" name="closes_at" />
           </label>

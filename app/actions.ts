@@ -18,6 +18,12 @@ function pacificToUtc(local: string): Date {
 }
 
 const str = (fd: FormData, k: string) => String(fd.get(k) ?? "").trim();
+type Choice = "aye" | "nay" | "abstain";
+function choiceFrom(fd: FormData): Choice {
+  const c = str(fd, "choice") as Choice;
+  if (!["aye", "nay", "abstain"].includes(c)) throw new Error("Choose Aye, Nay, or Abstain.");
+  return c;
+}
 
 /** Parse an optional datetime-local deadline; reject one that is already past (a phone picker often defaults to "now"). */
 function deadlineFrom(fd: FormData): string | null {
@@ -54,7 +60,7 @@ export async function proposeAction(formData: FormData) {
   const body = str(formData, "body");
   let id: number;
   if (formData.get("move_now") === "on" && member.is_voting) {
-    id = await moveMotion(member, { title, body, closes_at: deadlineFrom(formData) });
+    id = await moveMotion(member, { title, body, closes_at: deadlineFrom(formData), choice: choiceFrom(formData) });
   } else {
     id = await createDraft(member, { title, body, draft_note: str(formData, "draft_note") });
   }
@@ -79,6 +85,7 @@ export async function moveAction(formData: FormData) {
     title: str(formData, "title"),
     body: str(formData, "body"),
     closes_at: deadlineFrom(formData),
+    choice: choiceFrom(formData),
   });
   refresh(id);
   redirect(`/motions/${id}`);
@@ -87,7 +94,7 @@ export async function moveAction(formData: FormData) {
 export async function secondAction(formData: FormData) {
   const member = await requireMember();
   const id = Number(formData.get("motion_id"));
-  await secondMotion(member, id);
+  await secondMotion(member, id, choiceFrom(formData));
   refresh(id);
   redirect(`/motions/${id}`);
 }
@@ -103,9 +110,7 @@ export async function withdrawAction(formData: FormData) {
 export async function voteAction(formData: FormData) {
   const member = await requireMember();
   const motionId = Number(formData.get("motion_id"));
-  const choice = str(formData, "choice") as "aye" | "nay" | "abstain";
-  if (!["aye", "nay", "abstain"].includes(choice)) throw new Error("Bad choice");
-  await castVote(member, motionId, choice);
+  await castVote(member, motionId, choiceFrom(formData));
   refresh(motionId);
   redirect(str(formData, "back") || "/motions");
 }
