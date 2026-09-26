@@ -178,6 +178,24 @@ export async function reopenMotion(admin: Member, motionId: number) {
   await audit(admin.email, "motion_reopened", `#${motionId} (deadline cleared)`);
 }
 
+/**
+ * Admin corrects the Details (background) of a motion after it has been moved or seconded. The motion
+ * wording itself (title) is frozen once seconded and is not touched here. The correction is visible on
+ * the motion page and the written-consent PDF, and the original text is kept in the audit log.
+ */
+export async function correctDetails(admin: Member, motionId: number, input: { body: string; note: string }) {
+  const m = await one<Motion>("SELECT * FROM motions WHERE id = $1", [motionId]);
+  if (!m || (m.status !== "open" && m.status !== "moved")) throw new Error("Only a moved or open motion can have its details corrected.");
+  const body = input.body.trim(), note = input.note.trim();
+  if (!note) throw new Error("Say what was corrected; the note is shown to the board.");
+  if (body === m.body.trim()) throw new Error("The details are unchanged.");
+  await q(
+    `UPDATE motions SET body=$2, details_corrected_at=now(), details_corrected_by=$3, details_correction=$4 WHERE id=$1`,
+    [motionId, body, displayName(admin), note],
+  );
+  await audit(admin.email, "details_corrected", `#${motionId} ${note}\n--- previous details ---\n${m.body}`);
+}
+
 /** Admin sets or clears the voting deadline on a motion that is open (or moved, awaiting a second). */
 export async function setDeadline(admin: Member, motionId: number, closes_at: string | null) {
   const m = await one<Motion>("SELECT * FROM motions WHERE id = $1", [motionId]);

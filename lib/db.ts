@@ -95,6 +95,9 @@ ALTER TABLE motions DROP CONSTRAINT IF EXISTS motions_status_check;
 ALTER TABLE motions ADD CONSTRAINT motions_status_check CHECK (status IN ('draft','moved','open','closed','withdrawn'));
 ALTER TABLE votes ADD COLUMN IF NOT EXISTS source TEXT NOT NULL DEFAULT 'app' CHECK (source IN ('app','email'));
 ALTER TABLE motions ADD COLUMN IF NOT EXISTS mover_choice TEXT CHECK (mover_choice IN ('aye','nay','abstain'));
+ALTER TABLE motions ADD COLUMN IF NOT EXISTS details_corrected_at TIMESTAMPTZ;
+ALTER TABLE motions ADD COLUMN IF NOT EXISTS details_corrected_by TEXT NOT NULL DEFAULT '';
+ALTER TABLE motions ADD COLUMN IF NOT EXISTS details_correction TEXT NOT NULL DEFAULT '';
 `;
 
 /**
@@ -171,5 +174,6 @@ export type Motion = {
   opened_at: Date | null; closes_at: Date | null; closed_at: Date | null;
   created_by: number | null;
   mover_choice: "aye" | "nay" | "abstain" | null;  // the mover's vote, declared at the move and recorded when a second opens voting
+  details_corrected_at: Date | null; details_corrected_by: string; details_correction: string;  // admin clerical correction of the details after the second
 };
 export type Vote = { motion_id: number; member_id: number; choice: "aye" | "nay" | "abstain"; cast_at: Date; source: "app" | "email" };
