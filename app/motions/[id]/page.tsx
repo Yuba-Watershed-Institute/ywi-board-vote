@@ -3,7 +3,7 @@ import { notFound, redirect } from "next/navigation";
 import { currentMember } from "@/lib/auth";
 import { getMotion } from "@/lib/motions";
 import VoteButtons from "../vote-buttons";
-import { closeMotionAction, editDraftAction, moveAction, reopenMotionAction, secondAction, withdrawAction } from "../../actions";
+import { clearDeadlineAction, closeMotionAction, editDraftAction, moveAction, reopenMotionAction, secondAction, setDeadlineAction, withdrawAction } from "../../actions";
 
 export const dynamic = "force-dynamic";
 
@@ -46,7 +46,7 @@ export default async function MotionPage({ params }: { params: Promise<{ id: str
             {hidden("motion_id", m.id)}
             <label>Motion <input type="text" name="title" required defaultValue={m.title} /></label>
             <label>Details <textarea name="body" defaultValue={m.body} /></label>
-            <label>Voting deadline <small>Optional, Pacific time.</small><input type="datetime-local" name="closes_at" /></label>
+            <label>Voting deadline <small>Optional, Pacific time. Leave blank for no deadline; a deadline that has already passed is rejected.</small><input type="datetime-local" name="closes_at" /></label>
             <div><button className="primary" type="submit">Move this motion</button></div>
           </form>
         </div>
@@ -145,6 +145,18 @@ export default async function MotionPage({ params }: { params: Promise<{ id: str
             )}
             {m.allVotesIn && m.status === "open" && <span className="muted small">All votes are in; you can close this.</span>}
           </div>
+          {m.status === "open" && (
+            <form action={setDeadlineAction} className="stack" style={{ marginTop: 12 }}>
+              {hidden("motion_id", m.id)}
+              <label>Voting deadline <small>Pacific time. {m.closes_at ? `Currently ${fmt(m.closes_at)}.` : "None set."} Voting locks when it passes.</small>
+                <input type="datetime-local" name="closes_at" />
+              </label>
+              <div className="row">
+                <button className="secondary" type="submit">Set deadline</button>
+                {m.closes_at && <button className="secondary" type="submit" formAction={clearDeadlineAction}>Clear deadline</button>}
+              </div>
+            </form>
+          )}
         </div>
       )}
     </>
