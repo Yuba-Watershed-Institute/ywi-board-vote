@@ -7,6 +7,7 @@ import {
   castVote, closeMotion, correctDetails, createDraft, editDraft, moveMotion, recordEmailVote, reopenMotion,
   secondMotion, setDeadline, upsertMember, withdrawMotion,
 } from "@/lib/motions";
+import { sendVoteReminders } from "@/lib/notify";
 
 /** "2026-09-30T17:00" typed as Pacific wall-clock time -> UTC Date. */
 function pacificToUtc(local: string): Date {
@@ -139,6 +140,15 @@ export async function closeMotionAction(formData: FormData) {
   await closeMotion(admin, id);
   refresh(id);
   redirect(`/motions/${id}`);
+}
+
+/** Admin emails everyone who hasn't voted on this motion, regardless of the reminder schedule. */
+export async function remindAction(formData: FormData) {
+  await requireAdmin();
+  const id = Number(formData.get("motion_id"));
+  const r = await sendVoteReminders({ motionId: id, force: true });
+  refresh(id);
+  redirect(`/motions/${id}?reminded=${r.emailed.length}${r.delivered ? "" : "&unsent=1"}`);
 }
 
 export async function correctDetailsAction(formData: FormData) {

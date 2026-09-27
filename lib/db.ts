@@ -98,6 +98,14 @@ ALTER TABLE motions ADD COLUMN IF NOT EXISTS mover_choice TEXT CHECK (mover_choi
 ALTER TABLE motions ADD COLUMN IF NOT EXISTS details_corrected_at TIMESTAMPTZ;
 ALTER TABLE motions ADD COLUMN IF NOT EXISTS details_corrected_by TEXT NOT NULL DEFAULT '';
 ALTER TABLE motions ADD COLUMN IF NOT EXISTS details_correction TEXT NOT NULL DEFAULT '';
+-- v3: automatic vote reminders. One row per reminder email a director was sent about a motion.
+CREATE TABLE IF NOT EXISTS vote_reminders (
+  id         SERIAL PRIMARY KEY,
+  motion_id  INTEGER NOT NULL REFERENCES motions(id) ON DELETE CASCADE,
+  member_id  INTEGER NOT NULL REFERENCES members(id),
+  sent_at    TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS vote_reminders_motion_member ON vote_reminders (motion_id, member_id);
 `;
 
 /**
