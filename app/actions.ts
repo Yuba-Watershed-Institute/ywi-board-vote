@@ -2,7 +2,7 @@
 
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
-import { requestMagicLink, requireAdmin, requireMember } from "@/lib/auth";
+import { consumeMagicLink, requestMagicLink, requireAdmin, requireMember } from "@/lib/auth";
 import {
   castVote, closeMotion, correctDetails, createDraft, editDraft, moveMotion, reopenMotion,
   secondMotion, setDeadline, upsertMember, withdrawMotion,
@@ -50,6 +50,13 @@ export async function loginAction(_prev: unknown, formData: FormData) {
   } catch (e) {
     return { error: `Could not send the link: ${(e as Error).message}` };
   }
+}
+
+/** The button on /auth: only this POST consumes the sign-in token (mail scanners only GET/HEAD the link). */
+export async function completeLoginAction(formData: FormData) {
+  const token = str(formData, "token");
+  const member = token ? await consumeMagicLink(token) : null;
+  redirect(member ? "/motions" : "/?error=expired");
 }
 
 /** Anyone: propose a draft. A voting director may tick "move it now" to skip the draft stage. */
