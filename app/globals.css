@@ -43,7 +43,7 @@ td.choice.aye { color: var(--green); } td.choice.nay { color: var(--red); } td.c
 form.stack { display: grid; gap: 10px; }
 form.stack label { display: grid; gap: 4px; font-size: 14px; font-weight: 600; }
 form.stack label small { font-weight: 400; color: var(--muted); }
-input[type=text], input[type=email], input[type=datetime-local], textarea {
+input[type=text], input[type=email], input[type=datetime-local], select, textarea {
   width: 100%; padding: 10px 12px; font: inherit; border: 1px solid #c9cfc7; border-radius: 8px; background: #fff; }
 textarea { min-height: 110px; resize: vertical; }
 button.primary, a.button { display: inline-block; padding: 10px 16px; font: inherit; font-weight: 600; color: #fff; background: var(--green); border: 0; border-radius: 8px; cursor: pointer; text-decoration: none; }

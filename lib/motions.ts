@@ -167,6 +167,28 @@ export async function castVote(member: Member, motionId: number, choice: Vote["c
   await audit(member.email, "vote", `#${motionId} ${choice}`);
 }
 
+/**
+ * Admin transcribes a vote a director sent by email (or otherwise outside the app), e.g. when the
+ * director could not sign in. It is stored with source = 'email' and shown as "by email" on the motion
+ * page and the written-consent PDF. A vote the director cast in the app is never overwritten here.
+ */
+export async function recordEmailVote(admin: Member, motionId: number, memberId: number, choice: Vote["choice"], note: string) {
+  const motion = await one<Motion>("SELECT * FROM motions WHERE id = $1", [motionId]);
+  if (!motion) throw new Error("Motion not found.");
+  if (motion.status !== "open") throw new Error("This motion is not open for voting.");
+  const director = await one<Member>("SELECT * FROM members WHERE id = $1 AND active AND is_voting", [memberId]);
+  if (!director) throw new Error("Pick a voting director.");
+  if (!note.trim()) throw new Error("Say where the vote came from, e.g. \"email to the board thread, Sept 27\".");
+  const existing = await one<Vote>("SELECT * FROM votes WHERE motion_id = $1 AND member_id = $2", [motionId, memberId]);
+  if (existing && existing.source === "app") throw new Error(`${director.name} already voted ${existing.choice} in the app; that vote stands.`);
+  await q(
+    `INSERT INTO votes (motion_id, member_id, choice, source) VALUES ($1,$2,$3,'email')
+     ON CONFLICT (motion_id, member_id) DO UPDATE SET choice = EXCLUDED.choice, cast_at = now(), source = 'email'`,
+    [motionId, memberId, choice],
+  );
+  await audit(admin.email, "vote_recorded_by_email", `#${motionId} ${director.email} ${choice}: ${note.trim()}`);
+}
+
 export async function closeMotion(admin: Member, motionId: number) {
   await q("UPDATE motions SET status = 'closed', closed_at = now() WHERE id = $1 AND status = 'open'", [motionId]);
   await audit(admin.email, "motion_closed", `#${motionId}`);
