@@ -88,6 +88,9 @@ Check this reading against the bylaws; I am not a lawyer.
 
 - Only emails on the roster can request a link. Unknown addresses are refused and logged.
 - Links are random 256-bit tokens, hashed in the database, single use, 20-minute expiry.
+- The link opens a page with a "Sign in" button, and only that button press uses up the token. Mail
+  providers (Outlook/live.com in particular) open every link in an incoming email to scan it; before
+  this step existed, that scan consumed the token and the member's own click reported "expired".
 - Sessions are signed cookies (30 days). "Sign out" clears them.
 - Every login, vote, motion open/close, and roster change is written to the activity log on the Admin page.
 - Votes are visible to all signed-in members (open ballot, as board votes are). Nothing is public.

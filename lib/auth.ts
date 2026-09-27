@@ -40,13 +40,26 @@ export async function requestMagicLink(rawEmail: string): Promise<{ ok: true; de
   const sent = await sendMail({
     to: email,
     subject: "Your YWI board voting link",
-    text: `Hi ${member.name},\n\nClick to sign in and vote (link expires in ${LINK_MINUTES} minutes, single use):\n\n${link}\n\nIf you didn't request this, ignore this email.\n\nYuba Watershed Institute`,
+    text: `Hi ${member.name},\n\nOpen this link, then press the "Sign in" button on the page that appears (the link expires in ${LINK_MINUTES} minutes and works once):\n\n${link}\n\nIf you didn't request this, ignore this email.\n\nYuba Watershed Institute`,
   });
   await audit(email, "login_link_sent", sent.delivered ? "emailed" : "not emailed (no mail config)");
   return { ok: true, debugLink: sent.delivered ? undefined : link };
 }
 
-/** Step 2: token from the link is exchanged for a session cookie. */
+/**
+ * Step 2a: read-only check that a token is still valid, so the confirmation page can show
+ * "expired" without consuming it. Mail scanners fetch links with GET/HEAD; only the member's
+ * button press (a POST) reaches consumeMagicLink.
+ */
+export async function peekMagicLink(token: string): Promise<boolean> {
+  const row = await one<{ email: string }>(
+    "SELECT email FROM login_tokens WHERE token_hash = $1 AND used_at IS NULL AND expires_at > now()",
+    [sha256(token)],
+  );
+  return !!row;
+}
+
+/** Step 2b: token from the link is exchanged for a session cookie. */
 export async function consumeMagicLink(token: string): Promise<Member | null> {
   const row = await one<{ email: string }>(
     `UPDATE login_tokens SET used_at = now()
