@@ -3,7 +3,7 @@ import { notFound, redirect } from "next/navigation";
 import { currentMember } from "@/lib/auth";
 import { getMotion } from "@/lib/motions";
 import VoteButtons from "../vote-buttons";
-import { clearDeadlineAction, closeMotionAction, correctDetailsAction, editDraftAction, moveAction, reopenMotionAction, secondAction, setDeadlineAction, withdrawAction } from "../../actions";
+import { clearDeadlineAction, closeMotionAction, correctDetailsAction, editDraftAction, moveAction, recordEmailVoteAction, reopenMotionAction, secondAction, setDeadlineAction, withdrawAction } from "../../actions";
 
 export const dynamic = "force-dynamic";
 
@@ -171,6 +171,27 @@ export default async function MotionPage({ params }: { params: Promise<{ id: str
             )}
             {m.allVotesIn && m.status === "open" && <span className="muted small">All votes are in; you can close this.</span>}
           </div>
+          {m.status === "open" && (
+            <form action={recordEmailVoteAction} className="stack" style={{ marginTop: 12 }}>
+              {hidden("motion_id", m.id)}
+              <h4 style={{ margin: 0 }}>Record a vote received by email</h4>
+              <p className="muted small" style={{ margin: 0 }}>For a director who sent their vote to the board thread instead of voting here. It is marked &quot;by email&quot; in the tally and on the written-consent PDF. A vote the director cast in the app can&apos;t be overwritten this way.</p>
+              <label>Director
+                <select name="member_id" required defaultValue="">
+                  <option value="" disabled>Choose a director</option>
+                  {m.voters.filter((v) => v.is_voting && v.active && v.source !== "app").map((v) => (
+                    <option key={v.id} value={v.id}>{v.name}{v.choice ? ` (currently ${v.choice} by email)` : ""}</option>
+                  ))}
+                </select>
+              </label>
+              <label>Where it came from <small>Shown in the activity log, e.g. &quot;email to the board thread, Sept 27&quot;.</small><input type="text" name="note" required /></label>
+              <div className="row">
+                <button className="secondary" type="submit" name="choice" value="aye">Record Aye</button>
+                <button className="secondary" type="submit" name="choice" value="nay">Record Nay</button>
+                <button className="secondary" type="submit" name="choice" value="abstain">Record Abstain</button>
+              </div>
+            </form>
+          )}
           {m.status === "open" && (
             <form action={setDeadlineAction} className="stack" style={{ marginTop: 12 }}>
               {hidden("motion_id", m.id)}

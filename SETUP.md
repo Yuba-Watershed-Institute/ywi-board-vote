@@ -66,6 +66,10 @@ Motions have a life cycle: Suggested (draft) > Moved > Open for voting > Closed.
    Everyone else clicks Aye/Nay/Abstain on the motion page. Any vote can be changed until the motion closes.
 4. Email the board a heads-up with the site link when something needs a second or a vote. The motion
    page shows who has and hasn't voted.
+   If a director sends their vote by email instead (for example, they could not sign in), an admin
+   can record it from the motion page under Admin > "Record a vote received by email". It is marked
+   "by email" in the tally and on the PDF, the note goes to the activity log, and it never overwrites
+   a vote the director cast in the app themselves.
 5. When all votes are in (or the deadline passes), an admin clicks "Close voting" and downloads the
    written-consent PDF for the minutes file.
 

@@ -4,7 +4,7 @@ import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { consumeMagicLink, requestMagicLink, requireAdmin, requireMember } from "@/lib/auth";
 import {
-  castVote, closeMotion, correctDetails, createDraft, editDraft, moveMotion, reopenMotion,
+  castVote, closeMotion, correctDetails, createDraft, editDraft, moveMotion, recordEmailVote, reopenMotion,
   secondMotion, setDeadline, upsertMember, withdrawMotion,
 } from "@/lib/motions";
 
@@ -120,6 +120,17 @@ export async function voteAction(formData: FormData) {
   await castVote(member, motionId, choiceFrom(formData));
   refresh(motionId);
   redirect(str(formData, "back") || "/motions");
+}
+
+/** Admin transcribes a director's vote received by email. */
+export async function recordEmailVoteAction(formData: FormData) {
+  const admin = await requireAdmin();
+  const motionId = Number(formData.get("motion_id"));
+  const memberId = Number(formData.get("member_id"));
+  if (!memberId) throw new Error("Pick a voting director.");
+  await recordEmailVote(admin, motionId, memberId, choiceFrom(formData), str(formData, "note"));
+  refresh(motionId);
+  redirect(`/motions/${motionId}`);
 }
 
 export async function closeMotionAction(formData: FormData) {
