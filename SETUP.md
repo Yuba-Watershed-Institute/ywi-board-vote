@@ -80,9 +80,9 @@ Motions have a life cycle: Suggested (draft) > Moved > Open for voting > Closed.
    signs it, and it is circulated by hand.
 
    Each ballot is labelled for the minutes file when voting opens, numbered per year in the order
-   voting opened: "2026 consent 1", "2026 consent 2", and so on. The label is on the motion page, in
+   voting opened: "2026 Consent 1", "2026 Consent 2", and so on. The label is on the motion page, in
    the emails, on the PDF, and in the PDF's file name, which ends with the close date:
-   `2026 consent 1 - Approve the August minutes 2026 09 28.pdf`.
+   `2026 Consent 1 - Approve the August minutes 2026 09 28.pdf`.
 
    Only a director's first vote on a motion can close it, never a changed vote. So an admin can
    "Reopen voting" to let a director change their mind without the change closing it again; the admin
