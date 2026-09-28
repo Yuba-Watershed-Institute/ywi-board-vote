@@ -29,7 +29,7 @@ async function closedNoticeRecipients(): Promise<string[]> {
 /**
  * Emails the whole active roster (directors and non-voting members alike) and the admins that a vote
  * has closed: the result, the tally, and each director's vote. The written-consent PDF is deliberately
- * not attached: the Secretary signs it first and circulates it by hand. `how` says who or what closed
+ * not attached: the Secretary signs it and files it with the minutes. `how` says who or what closed
  * the vote. Called after the motion is already closed; a mail failure is logged and never undoes it.
  */
 export async function sendClosedNotice(m: MotionDetail, how: string): Promise<void> {
@@ -53,7 +53,7 @@ export async function sendClosedNotice(m: MotionDetail, how: string): Promise<vo
     `Tally: ${t.aye} aye, ${t.nay} nay, ${t.abstain} abstain, ${t.pending} not voting, of ${t.total} directors entitled to vote.\n\n` +
     `Votes:\n${votes}\n\n` +
     `The motion is at:\n${link}\n\n` +
-    `The Secretary will circulate the signed written-consent record for the minutes file.\n\n` +
+    `The signed written-consent record is filed with the board minutes; the record is also available from the motion page.\n\n` +
     `Yuba Watershed Institute`;
   try {
     const sent = await sendMail({

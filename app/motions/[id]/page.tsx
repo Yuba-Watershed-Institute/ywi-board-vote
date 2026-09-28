@@ -193,7 +193,7 @@ export default async function MotionPage({ params, searchParams }: { params: Pro
           {m.status === "open" && (
             <p className="muted small" style={{ marginTop: 8 }}>
               Voting closes by itself the moment the last director&apos;s vote is in; close it here to end it early, for example at the deadline.
-              Closing, either way, emails the whole roster and the admins the result. The written-consent PDF is not emailed: download it here, have the Secretary sign it, then circulate it.
+              Closing, either way, emails the whole roster and the admins the result. The written-consent PDF is not emailed: download it here, have the Secretary sign it, and file it with the minutes.
               Directors who haven&apos;t voted are also reminded automatically each morning once a motion has been open a couple of days (see SETUP.md); the button sends one right now.
             </p>
           )}
