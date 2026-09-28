@@ -1,4 +1,4 @@
-import { q, one, audit, type Motion, type Member, type Vote } from "./db";
+import { q, one, audit, pacificYear, type Motion, type Member, type Vote } from "./db";
 import { sendMail } from "./mail";
 import { appUrl } from "./auth";
 import { sendClosedNotice } from "./notify";
@@ -106,10 +106,12 @@ export async function secondMotion(member: Member, motionId: number, choice: Vot
   const m = await one<Motion>("SELECT * FROM motions WHERE id = $1", [motionId]);
   if (!m || m.status !== "moved") throw new Error("This motion isn't waiting for a second.");
   if (m.moved_by_id === member.id) throw new Error("The mover can't second their own motion.");
+  // Opening the ballot also gives it its label for the minutes file: the next number in this year's sequence.
   await q(
-    `UPDATE motions SET status='open', seconded_by=$2, seconded_by_id=$3, seconded_at=now(), opened_at=now()
+    `UPDATE motions SET status='open', seconded_by=$2, seconded_by_id=$3, seconded_at=now(), opened_at=now(),
+            consent_year=$4, consent_no=(SELECT coalesce(max(consent_no), 0) + 1 FROM motions WHERE consent_year=$4)
       WHERE id=$1 AND status='moved'`,
-    [motionId, displayName(member), member.id],
+    [motionId, displayName(member), member.id, pacificYear(new Date())],
   );
   await audit(member.email, "motion_seconded", `#${motionId} (voting opened)`);
 

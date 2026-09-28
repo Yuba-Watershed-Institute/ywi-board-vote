@@ -108,6 +108,21 @@ CREATE TABLE IF NOT EXISTS vote_reminders (
 CREATE INDEX IF NOT EXISTS vote_reminders_motion_member ON vote_reminders (motion_id, member_id);
 -- v4: the same table also records nudges about motions awaiting a second.
 ALTER TABLE vote_reminders ADD COLUMN IF NOT EXISTS kind TEXT NOT NULL DEFAULT 'vote' CHECK (kind IN ('vote','second'));
+-- v5: each ballot gets a label for the minutes file, "2026 consent 3": numbered per Pacific-time year in
+-- the order voting opened. Motions already open or closed before this existed are numbered once, below.
+ALTER TABLE motions ADD COLUMN IF NOT EXISTS consent_year INTEGER;
+ALTER TABLE motions ADD COLUMN IF NOT EXISTS consent_no   INTEGER;
+CREATE UNIQUE INDEX IF NOT EXISTS motions_consent_label ON motions (consent_year, consent_no);
+WITH numbered AS (
+  SELECT id,
+         EXTRACT(YEAR FROM opened_at AT TIME ZONE 'America/Los_Angeles')::int AS y,
+         row_number() OVER (PARTITION BY EXTRACT(YEAR FROM opened_at AT TIME ZONE 'America/Los_Angeles') ORDER BY opened_at, id)::int AS n
+    FROM motions WHERE opened_at IS NOT NULL AND status IN ('open','closed')
+)
+UPDATE motions m SET consent_year = numbered.y, consent_no = numbered.n
+  FROM numbered
+ WHERE m.id = numbered.id
+   AND NOT EXISTS (SELECT 1 FROM motions WHERE consent_no IS NOT NULL);
 `;
 
 /**
@@ -185,5 +200,15 @@ export type Motion = {
   created_by: number | null;
   mover_choice: "aye" | "nay" | "abstain" | null;  // the mover's vote, declared at the move and recorded when a second opens voting
   details_corrected_at: Date | null; details_corrected_by: string; details_correction: string;  // admin clerical correction of the details after the second
+  consent_year: number | null; consent_no: number | null;  // "2026 consent 3": assigned when voting opens
 };
+
+/** "2026 consent 3", or null before voting has opened. */
+export function consentLabel(m: { consent_year: number | null; consent_no: number | null }): string | null {
+  return m.consent_year && m.consent_no ? `${m.consent_year} consent ${m.consent_no}` : null;
+}
+/** Pacific-time calendar year of a moment, for numbering consents. */
+export function pacificYear(d: Date): number {
+  return Number(d.toLocaleDateString("en-US", { timeZone: "America/Los_Angeles", year: "numeric" }));
+}
 export type Vote = { motion_id: number; member_id: number; choice: "aye" | "nay" | "abstain"; cast_at: Date; source: "app" | "email" };

@@ -1,5 +1,6 @@
 import { PDFDocument, StandardFonts, rgb, type PDFFont, type PDFPage } from "pdf-lib";
 import type { MotionDetail } from "./motions";
+import { consentLabel } from "./db";
 
 const TZ = "America/Los_Angeles";
 function fmt(d: Date | string | null): string {
@@ -27,6 +28,17 @@ function wrap(text: string, font: PDFFont, size: number, width: number): string[
   return out;
 }
 
+/**
+ * "2026 consent 3 - Approve the August minutes 2026 09 28.pdf": the label keeps it unique, the date at
+ * the end is the close date (or today, for a record printed while voting is still open).
+ */
+export function writtenConsentFilename(m: MotionDetail): string {
+  const when = new Date(m.closed_at ?? new Date());
+  const ymd = when.toLocaleDateString("en-CA", { timeZone: TZ }).replace(/-/g, " ");
+  const title = m.title.replace(/[\\/:*?"<>|]+/g, " ").replace(/\s+/g, " ").trim().slice(0, 60).trim();
+  return `${consentLabel(m) ?? `motion ${m.id}`} - ${title} ${ymd}.pdf`;
+}
+
 export async function writtenConsentPdf(m: MotionDetail): Promise<Uint8Array> {
   const doc = await PDFDocument.create();
   const font = await doc.embedFont(StandardFonts.Helvetica);
@@ -51,6 +63,8 @@ export async function writtenConsentPdf(m: MotionDetail): Promise<Uint8Array> {
   line("Yuba Watershed Institute", { size: 9, color: grey, gap: 2 });
   line("Board of Directors", { size: 9, color: grey, gap: 10 });
   line(m.unanimous ? "Unanimous Written Consent of the Board of Directors" : "Record of Board Vote Taken by Electronic Ballot", { size: 15, font: bold, gap: 6 });
+  const label = consentLabel(m);
+  if (label) line(label, { size: 12, font: bold, gap: 6 });
   line(`Action without a meeting. Motion #${m.id}. Record generated ${fmt(new Date())}.`, { size: 9, color: grey, gap: 10 });
   rule();
 
