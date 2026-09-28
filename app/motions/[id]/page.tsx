@@ -21,6 +21,7 @@ export default async function MotionPage({ params, searchParams }: { params: Pro
   const pastDeadline = !!m.closes_at && new Date(m.closes_at) < new Date();
   const isMover = m.moved_by_id === member.id;
   const isDrafter = m.drafted_by === member.id;
+  const canSecond = m.voters.filter((v) => v.is_voting && v.active && v.id !== m.moved_by_id).length;
   const hidden = (name: string, value: string | number) => <input type="hidden" name={name} value={value} />;
 
   return (
@@ -28,7 +29,7 @@ export default async function MotionPage({ params, searchParams }: { params: Pro
       <p className="small"><Link href="/motions">← All motions</Link></p>
       {reminded !== undefined && (
         <div className={`notice${Number(reminded) > 0 && !unsent ? " ok" : ""}`}>
-          {Number(reminded) === 0 ? "Nobody to remind: everyone has voted, or the deadline has passed." : unsent ? `Reminders for ${reminded} director${reminded === "1" ? "" : "s"} were logged but not emailed: mail isn't configured.` : `Reminder emailed to ${reminded} director${reminded === "1" ? "" : "s"} who ${reminded === "1" ? "hasn't" : "haven't"} voted.`}
+          {Number(reminded) === 0 ? "Nobody to remind: nothing is waiting on anyone, or the deadline has passed." : unsent ? `Reminders for ${reminded} director${reminded === "1" ? "" : "s"} were logged but not emailed: mail isn't configured.` : `Reminder emailed to ${reminded} director${reminded === "1" ? "" : "s"}.`}
         </div>
       )}
       <h1>{m.title}</h1>
@@ -101,8 +102,14 @@ export default async function MotionPage({ params, searchParams }: { params: Pro
             <p className="muted small">Waiting for a director other than the mover to second.</p>
           )}
           {(isMover || member.is_admin) && (
-            <form action={withdrawAction} style={{ marginTop: 10 }}>{hidden("motion_id", m.id)}<button className="secondary" type="submit">Withdraw motion</button></form>
+            <div className="row" style={{ marginTop: 10 }}>
+              <form action={withdrawAction}>{hidden("motion_id", m.id)}<button className="secondary" type="submit">Withdraw motion</button></form>
+              {member.is_admin && canSecond > 0 && (
+                <form action={remindAction}>{hidden("motion_id", m.id)}<button className="secondary" type="submit">Email a reminder to the {canSecond} who can second</button></form>
+              )}
+            </div>
           )}
+          {member.is_admin && <p className="muted small" style={{ marginTop: 8 }}>Directors are also nudged about motions awaiting a second by the same daily reminder that chases missing votes.</p>}
         </div>
       )}
 
@@ -182,7 +189,8 @@ export default async function MotionPage({ params, searchParams }: { params: Pro
           </div>
           {m.status === "open" && (
             <p className="muted small" style={{ marginTop: 8 }}>
-              Closing emails the whole roster the result with the written-consent PDF attached.
+              Voting closes by itself the moment the last director&apos;s vote is in; close it here to end it early, for example at the deadline.
+              Closing, either way, emails the whole roster and the admins the result with the written-consent PDF attached.
               Directors who haven&apos;t voted are also reminded automatically each morning once a motion has been open a couple of days (see SETUP.md); the button sends one right now.
             </p>
           )}

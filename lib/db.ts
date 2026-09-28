@@ -106,6 +106,8 @@ CREATE TABLE IF NOT EXISTS vote_reminders (
   sent_at    TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 CREATE INDEX IF NOT EXISTS vote_reminders_motion_member ON vote_reminders (motion_id, member_id);
+-- v4: the same table also records nudges about motions awaiting a second.
+ALTER TABLE vote_reminders ADD COLUMN IF NOT EXISTS kind TEXT NOT NULL DEFAULT 'vote' CHECK (kind IN ('vote','second'));
 `;
 
 /**

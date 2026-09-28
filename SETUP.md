@@ -67,15 +67,20 @@ Motions have a life cycle: Suggested (draft) > Moved > Open for voting > Closed.
 3. A different voting director clicks "Second and vote Aye" (or Nay, or Abstain). That opens voting,
    records the seconder's vote and the mover's held vote, and emails the mover that voting is open.
    Everyone else clicks Aye/Nay/Abstain on the motion page. Any vote can be changed until the motion closes.
-4. Email the board a heads-up with the site link when something needs a second. The motion
-   page shows who has and hasn't voted, and the app nudges the laggards itself (see "Automatic emails").
+4. The motion page shows who has and hasn't voted, and the app nudges directors itself about motions
+   waiting for a second or for their vote (see "Automatic emails").
    If a director sends their vote by email instead (for example, they could not sign in), an admin
    can record it from the motion page under Admin > "Record a vote received by email". It is marked
    "by email" in the tally and on the PDF, the note goes to the activity log, and it never overwrites
    a vote the director cast in the app themselves.
-5. When all votes are in (or the deadline passes), an admin clicks "Close voting". Everyone on the
-   roster is emailed the result, the tally, each director's vote, and the written-consent PDF for the
-   minutes file (it can also be downloaded from the motion page).
+5. Voting closes by itself the moment the last voting director's vote is in. If it never gets there
+   (say the deadline passes with a director silent), an admin clicks "Close voting". Either way,
+   everyone on the roster and the admins are emailed the result, the tally, each director's vote, and
+   the written-consent PDF for the minutes file (it can also be downloaded from the motion page).
+
+   Only a director's first vote on a motion can close it, never a changed vote. So an admin can
+   "Reopen voting" to let a director change their mind without the change closing it again; the admin
+   closes it by hand afterwards.
 
 Withdrawals: the mover can withdraw before a second; the drafter or an admin can withdraw a draft.
 Once seconded, wording is frozen; to change it, withdraw and re-move.
@@ -85,18 +90,21 @@ Once seconded, wording is frozen; to change it, withdraw and re-move.
 Besides the sign-in link, the app sends three kinds of email, all from `MAIL_FROM`:
 
 - **Seconded** (to the mover): a director seconded their motion, so voting is open.
-- **Vote closed** (to every active member, voting or not): sent when an admin clicks "Close voting".
-  Result, tally, each director's vote, a link to the motion, and the written-consent PDF attached.
-  Reopening and closing again sends it again.
-- **Vote reminder** (to each voting director who hasn't voted): one email per director listing every
-  open motion still waiting on them, with links. A scheduled job (`vercel.json`, daily at 16:00 UTC,
-  which is 9 am PDT / 8 am PST) checks each morning: a director is reminded once a motion has been open
-  `REMINDER_AFTER_DAYS` (default 2) and again every `REMINDER_EVERY_DAYS` (default 3) until they vote
-  or the motion closes. Motions whose deadline has passed are skipped, since voting is locked then.
-  Every reminder is recorded (table `vote_reminders`) and summarized in the activity log.
+- **Vote closed** (to every active member, voting or not, plus every address in `ADMIN_EMAILS` even
+  if it is not on the roster): sent when voting closes, whether by itself on the last vote or by an
+  admin's click. Result, tally, each director's vote, how it closed, a link to the motion, and the
+  written-consent PDF attached. Reopening and closing again sends it again.
+- **Reminder** (to each voting director something is waiting on): one email per director listing the
+  open motions they haven't voted on and the moved motions (by someone else) that still need a
+  second, with links. A scheduled job (`vercel.json`, daily at 16:00 UTC, which is 9 am PDT / 8 am PST)
+  checks each morning: a director is reminded once an item has been waiting `REMINDER_AFTER_DAYS`
+  (default 2, counted from when voting opened or the motion was moved) and again every
+  `REMINDER_EVERY_DAYS` (default 3) until they act or the motion moves on. Open motions whose deadline
+  has passed are skipped, since voting is locked then. Every reminder is recorded (table
+  `vote_reminders`) and summarized in the activity log.
 
   An admin can also send the reminder immediately from the motion page ("Email a reminder to the N who
-  haven't voted"); that ignores the schedule and goes to everyone who hasn't voted on that motion.
+  haven't voted", or on a moved motion "... to the N who can second"); that ignores the schedule.
   Opening `/api/cron/reminders` in the browser while signed in as admin runs the scheduled check by
   hand and shows who was emailed.
 

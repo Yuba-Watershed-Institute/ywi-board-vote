@@ -1,7 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { timingSafeEqual } from "crypto";
 import { currentMember } from "@/lib/auth";
-import { sendVoteReminders } from "@/lib/notify";
+import { sendReminders } from "@/lib/notify";
 
 export const dynamic = "force-dynamic";
 
@@ -19,6 +19,6 @@ function bearerOk(req: NextRequest): boolean {
  */
 export async function GET(req: NextRequest) {
   if (!bearerOk(req) && !(await currentMember())?.is_admin) return new NextResponse("Unauthorized", { status: 401 });
-  const result = await sendVoteReminders();
+  const result = await sendReminders();
   return NextResponse.json({ ok: true, ...result });
 }
