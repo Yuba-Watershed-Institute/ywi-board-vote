@@ -3,6 +3,7 @@ import { notFound, redirect } from "next/navigation";
 import { currentMember } from "@/lib/auth";
 import { getMotion } from "@/lib/motions";
 import { consentLabel } from "@/lib/db";
+import { writtenConsentPath } from "@/lib/pdf";
 import VoteButtons from "../vote-buttons";
 import { clearDeadlineAction, closeMotionAction, correctDetailsAction, editDraftAction, moveAction, recordEmailVoteAction, remindAction, reopenMotionAction, secondAction, setDeadlineAction, withdrawAction } from "../../actions";
 
@@ -157,7 +158,7 @@ export default async function MotionPage({ params, searchParams }: { params: Pro
             </tbody>
           </table>
           <p className="small" style={{ marginTop: 12 }}>
-            <a className="button" href={`/motions/${m.id}/consent.pdf`}>Download written-consent PDF</a>
+            <a className="button" href={writtenConsentPath(m)}>Download written-consent PDF</a>
           </p>
         </div>
       )}

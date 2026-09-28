@@ -29,7 +29,7 @@ function wrap(text: string, font: PDFFont, size: number, width: number): string[
 }
 
 /**
- * "2026 consent 3 - Approve the August minutes 2026 09 28.pdf": the label keeps it unique, the date at
+ * "2026 Consent 3 - Approve the August minutes 2026 09 28.pdf": the label keeps it unique, the date at
  * the end is the close date (or today, for a record printed while voting is still open).
  */
 export function writtenConsentFilename(m: MotionDetail): string {
@@ -37,6 +37,14 @@ export function writtenConsentFilename(m: MotionDetail): string {
   const ymd = when.toLocaleDateString("en-CA", { timeZone: TZ }).replace(/-/g, " ");
   const title = m.title.replace(/[\\/:*?"<>|]+/g, " ").replace(/\s+/g, " ").trim().slice(0, 60).trim();
   return `${consentLabel(m) ?? `motion ${m.id}`} - ${title} ${ymd}.pdf`;
+}
+
+/**
+ * The download URL ends with the file name itself, so a browser that names a saved PDF after the last
+ * part of the URL (rather than the Content-Disposition header) still gets the right name.
+ */
+export function writtenConsentPath(m: MotionDetail): string {
+  return `/motions/${m.id}/consent/${encodeURIComponent(writtenConsentFilename(m))}`;
 }
 
 export async function writtenConsentPdf(m: MotionDetail): Promise<Uint8Array> {
