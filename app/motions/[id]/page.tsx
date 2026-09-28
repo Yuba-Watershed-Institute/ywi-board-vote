@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { currentMember } from "@/lib/auth";
 import { getMotion } from "@/lib/motions";
+import { consentLabel } from "@/lib/db";
 import VoteButtons from "../vote-buttons";
 import { clearDeadlineAction, closeMotionAction, correctDetailsAction, editDraftAction, moveAction, recordEmailVoteAction, remindAction, reopenMotionAction, secondAction, setDeadlineAction, withdrawAction } from "../../actions";
 
@@ -35,6 +36,7 @@ export default async function MotionPage({ params, searchParams }: { params: Pro
       <h1>{m.title}</h1>
       <div className="meta">
         <span className={`pill ${m.status === "open" ? "open" : m.status === "moved" || m.status === "draft" ? "pending" : "closed"}`}>{STATUS_LABEL[m.status]}</span>
+        {consentLabel(m) && <b>{consentLabel(m)}. </b>}
         {m.drafter_name && m.drafted_by !== m.moved_by_id && <>Drafted by {m.drafter_name} {fmt(m.drafted_at)}. </>}
         {m.moved_by && <>Moved by {m.moved_by} {fmt(m.moved_at)}{m.amended && " (wording amended from the draft)"}. </>}
         {m.seconded_by && <>Seconded by {m.seconded_by} {fmt(m.seconded_at)}. </>}
@@ -190,7 +192,7 @@ export default async function MotionPage({ params, searchParams }: { params: Pro
           {m.status === "open" && (
             <p className="muted small" style={{ marginTop: 8 }}>
               Voting closes by itself the moment the last director&apos;s vote is in; close it here to end it early, for example at the deadline.
-              Closing, either way, emails the whole roster and the admins the result with the written-consent PDF attached.
+              Closing, either way, emails the whole roster and the admins the result. The written-consent PDF is not emailed: download it here, have the Secretary sign it, then circulate it.
               Directors who haven&apos;t voted are also reminded automatically each morning once a motion has been open a couple of days (see SETUP.md); the button sends one right now.
             </p>
           )}

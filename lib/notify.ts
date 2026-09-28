@@ -1,7 +1,6 @@
-import { q, audit } from "./db";
+import { q, audit, consentLabel } from "./db";
 import { sendMail, sendMailBatch } from "./mail";
 import { appUrl } from "./auth";
-import { writtenConsentPdf } from "./pdf";
 import type { MotionDetail } from "./motions";
 
 const TZ = "America/Los_Angeles";
@@ -29,9 +28,9 @@ async function closedNoticeRecipients(): Promise<string[]> {
 
 /**
  * Emails the whole active roster (directors and non-voting members alike) and the admins that a vote
- * has closed: the result, the tally, each director's vote, and the written-consent PDF for the minutes
- * file. `how` says who or what closed it. Called after the motion is already closed; a mail failure
- * is logged and never undoes the close.
+ * has closed: the result, the tally, and each director's vote. The written-consent PDF is deliberately
+ * not attached: the Secretary signs it first and circulates it by hand. `how` says who or what closed
+ * the vote. Called after the motion is already closed; a mail failure is logged and never undoes it.
  */
 export async function sendClosedNotice(m: MotionDetail, how: string): Promise<void> {
   const recipients = await closedNoticeRecipients();
@@ -46,23 +45,21 @@ export async function sendClosedNotice(m: MotionDetail, how: string): Promise<vo
   const votes = m.voters
     .map((v) => `  ${v.name}: ${v.choice ? v.choice : "no vote recorded"}${v.source === "email" ? " (by email)" : ""}`)
     .join("\n");
+  const label = consentLabel(m);
   const text =
-    `Voting closed ${fmt(m.closed_at)} (${how}) on this motion:\n\n` +
+    `Voting closed ${fmt(m.closed_at)} (${how}) on ${label ? `${label}:` : "this motion:"}\n\n` +
     `${m.title}\n\n` +
     `Result: ${result}\n` +
     `Tally: ${t.aye} aye, ${t.nay} nay, ${t.abstain} abstain, ${t.pending} not voting, of ${t.total} directors entitled to vote.\n\n` +
     `Votes:\n${votes}\n\n` +
-    `The written-consent record is attached, and the motion is at:\n${link}\n\n` +
+    `The motion is at:\n${link}\n\n` +
+    `The Secretary will circulate the signed written-consent record for the minutes file.\n\n` +
     `Yuba Watershed Institute`;
   try {
-    const pdf = await writtenConsentPdf(m);
-    const stamp = new Date(m.closed_at ?? new Date()).toLocaleDateString("en-CA", { timeZone: TZ });
-    const safe = m.title.replace(/[^a-z0-9]+/gi, "-").replace(/^-|-$/g, "").slice(0, 60);
     const sent = await sendMail({
       to: recipients,
-      subject: `Vote closed: ${short(m.title)}`,
+      subject: `Vote closed: ${label ? `${label}, ` : ""}${short(m.title)}`,
       text,
-      attachments: [{ filename: `${stamp}_written-consent_${safe}.pdf`, content: Buffer.from(pdf) }],
     });
     await audit("system", "closed_notice_sent", `#${m.id} to ${recipients.length} members${sent.delivered ? "" : " (not emailed: no mail config)"}`);
   } catch (err) {
@@ -73,6 +70,7 @@ export async function sendClosedNotice(m: MotionDetail, how: string): Promise<vo
 type Kind = "vote" | "second";
 type Pending = {
   kind: Kind; motion_id: number; title: string; since: Date; closes_at: Date | null; moved_by: string;
+  consent_year: number | null; consent_no: number | null;
   member_id: number; name: string; email: string; last_reminded: Date | null;
 };
 
@@ -92,7 +90,7 @@ export type ReminderResult = { emailed: Array<{ email: string; motions: number[]
 export async function sendReminders(opts: { motionId?: number; force?: boolean; now?: Date } = {}): Promise<ReminderResult> {
   const now = opts.now ?? new Date();
   const rows = await q<Pending>(
-    `SELECT 'vote' AS kind, mo.id AS motion_id, mo.title, mo.opened_at AS since, mo.closes_at, mo.moved_by,
+    `SELECT 'vote' AS kind, mo.id AS motion_id, mo.title, mo.opened_at AS since, mo.closes_at, mo.moved_by, mo.consent_year, mo.consent_no,
             m.id AS member_id, m.name, m.email,
             (SELECT max(r.sent_at) FROM vote_reminders r WHERE r.motion_id = mo.id AND r.member_id = m.id AND r.kind = 'vote') AS last_reminded
        FROM motions mo
@@ -103,7 +101,7 @@ export async function sendReminders(opts: { motionId?: number; force?: boolean; 
         AND (mo.closes_at IS NULL OR mo.closes_at > $2)
         AND ($1::int IS NULL OR mo.id = $1)
      UNION ALL
-     SELECT 'second' AS kind, mo.id AS motion_id, mo.title, mo.moved_at AS since, mo.closes_at, mo.moved_by,
+     SELECT 'second' AS kind, mo.id AS motion_id, mo.title, mo.moved_at AS since, mo.closes_at, mo.moved_by, mo.consent_year, mo.consent_no,
             m.id AS member_id, m.name, m.email,
             (SELECT max(r.sent_at) FROM vote_reminders r WHERE r.motion_id = mo.id AND r.member_id = m.id AND r.kind = 'second') AS last_reminded
        FROM motions mo
@@ -137,7 +135,7 @@ export async function sendReminders(opts: { motionId?: number; force?: boolean; 
     if (votes.length) {
       sections.push(
         `You haven't voted yet on ${votes.length === 1 ? "this motion" : "these motions"}:\n\n` +
-        votes.map((r) => `  - ${r.title}\n    Open since ${fmt(r.since)}${r.closes_at ? `; deadline ${fmt(r.closes_at)}` : ""}\n    ${base}/motions/${r.motion_id}`).join("\n\n"));
+        votes.map((r) => `  - ${consentLabel(r) ? `${consentLabel(r)}: ` : ""}${r.title}\n    Open since ${fmt(r.since)}${r.closes_at ? `; deadline ${fmt(r.closes_at)}` : ""}\n    ${base}/motions/${r.motion_id}`).join("\n\n"));
     }
     if (seconds.length) {
       sections.push(

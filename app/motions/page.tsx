@@ -2,6 +2,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { currentMember } from "@/lib/auth";
 import { listMotions, getMotion, type MotionDetail } from "@/lib/motions";
+import { consentLabel } from "@/lib/db";
 import VoteButtons from "./vote-buttons";
 import ProposeForm from "./propose-form";
 
@@ -36,7 +37,7 @@ export default async function MotionsPage() {
       {open.length === 0 && <p className="muted">Nothing is open right now.</p>}
       {open.map((m) => (
         <div className="card" key={m.id}>
-          <h3><Link href={`/motions/${m.id}`}>{m.title}</Link></h3>
+          <h3>{consentLabel(m) && <span className="muted">{consentLabel(m)}: </span>}<Link href={`/motions/${m.id}`}>{m.title}</Link></h3>
           <div className="meta"><Provenance m={m} />{m.closes_at && <> Deadline {fmt(m.closes_at)}.</>}</div>
           {m.body && <pre className="body small">{m.body}</pre>}
           <div className="meta" style={{ marginTop: 8 }}>
@@ -86,7 +87,7 @@ export default async function MotionsPage() {
       {done.length === 0 && <p className="muted">No closed motions yet.</p>}
       {done.map((m) => (
         <div className="card" key={m.id}>
-          <h3><Link href={`/motions/${m.id}`}>{m.title}</Link></h3>
+          <h3>{consentLabel(m) && <span className="muted">{consentLabel(m)}: </span>}<Link href={`/motions/${m.id}`}>{m.title}</Link></h3>
           <div className="meta">
             {m.status === "withdrawn" ? (
               <span className="pill closed">Withdrawn {fmt(m.closed_at)}</span>

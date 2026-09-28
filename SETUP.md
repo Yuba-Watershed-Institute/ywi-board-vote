@@ -75,8 +75,14 @@ Motions have a life cycle: Suggested (draft) > Moved > Open for voting > Closed.
    a vote the director cast in the app themselves.
 5. Voting closes by itself the moment the last voting director's vote is in. If it never gets there
    (say the deadline passes with a director silent), an admin clicks "Close voting". Either way,
-   everyone on the roster and the admins are emailed the result, the tally, each director's vote, and
-   the written-consent PDF for the minutes file (it can also be downloaded from the motion page).
+   everyone on the roster and the admins are emailed the result, the tally, and each director's vote.
+   The written-consent PDF is not emailed: an admin downloads it from the motion page, the Secretary
+   signs it, and it is circulated by hand.
+
+   Each ballot is labelled for the minutes file when voting opens, numbered per year in the order
+   voting opened: "2026 consent 1", "2026 consent 2", and so on. The label is on the motion page, in
+   the emails, on the PDF, and in the PDF's file name, which ends with the close date:
+   `2026 consent 1 - Approve the August minutes 2026 09 28.pdf`.
 
    Only a director's first vote on a motion can close it, never a changed vote. So an admin can
    "Reopen voting" to let a director change their mind without the change closing it again; the admin
@@ -92,8 +98,9 @@ Besides the sign-in link, the app sends three kinds of email, all from `MAIL_FRO
 - **Seconded** (to the mover): a director seconded their motion, so voting is open.
 - **Vote closed** (to every active member, voting or not, plus every address in `ADMIN_EMAILS` even
   if it is not on the roster): sent when voting closes, whether by itself on the last vote or by an
-  admin's click. Result, tally, each director's vote, how it closed, a link to the motion, and the
-  written-consent PDF attached. Reopening and closing again sends it again.
+  admin's click. Result, tally, each director's vote, how it closed, and a link to the motion. The
+  PDF is deliberately not attached; the Secretary signs and circulates it. Reopening and closing again
+  sends it again.
 - **Reminder** (to each voting director something is waiting on): one email per director listing the
   open motions they haven't voted on and the moved motions (by someone else) that still need a
   second, with links. A scheduled job (`vercel.json`, daily at 16:00 UTC, which is 9 am PDT / 8 am PST)
