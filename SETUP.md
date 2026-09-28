@@ -41,6 +41,9 @@ Vercel > ywi-board-vote > Settings > Environment Variables. Add these for Produc
 | `APP_URL` | `https://ywi-board-vote.vercel.app` (change if you add a custom domain) |
 | `ADMIN_EMAILS` | `chris@yubawatershedinstitute.org` |
 | `BOARD_ROSTER` | JSON list of members (kept out of the public repo). I gave you the exact value in BOARD_ROSTER.txt; paste it as one line. Used only to seed an empty roster and to run one-time imports. |
+| `CRON_SECRET` | another long random string (`openssl rand -base64 32`). Vercel sends it with each scheduled reminder run so nobody else can trigger one. Without it the schedule does nothing. |
+| `REMINDER_AFTER_DAYS` | optional, default `2`: how long a motion has been open before a director who hasn't voted gets the first reminder. |
+| `REMINDER_EVERY_DAYS` | optional, default `3`: how often to repeat the reminder while they still haven't voted. |
 
 Then Deployments > latest > "..." > Redeploy so the variables take effect.
 
@@ -64,17 +67,45 @@ Motions have a life cycle: Suggested (draft) > Moved > Open for voting > Closed.
 3. A different voting director clicks "Second and vote Aye" (or Nay, or Abstain). That opens voting,
    records the seconder's vote and the mover's held vote, and emails the mover that voting is open.
    Everyone else clicks Aye/Nay/Abstain on the motion page. Any vote can be changed until the motion closes.
-4. Email the board a heads-up with the site link when something needs a second or a vote. The motion
-   page shows who has and hasn't voted.
+4. Email the board a heads-up with the site link when something needs a second. The motion
+   page shows who has and hasn't voted, and the app nudges the laggards itself (see "Automatic emails").
    If a director sends their vote by email instead (for example, they could not sign in), an admin
    can record it from the motion page under Admin > "Record a vote received by email". It is marked
    "by email" in the tally and on the PDF, the note goes to the activity log, and it never overwrites
    a vote the director cast in the app themselves.
-5. When all votes are in (or the deadline passes), an admin clicks "Close voting" and downloads the
-   written-consent PDF for the minutes file.
+5. When all votes are in (or the deadline passes), an admin clicks "Close voting". Everyone on the
+   roster is emailed the result, the tally, each director's vote, and the written-consent PDF for the
+   minutes file (it can also be downloaded from the motion page).
 
 Withdrawals: the mover can withdraw before a second; the drafter or an admin can withdraw a draft.
 Once seconded, wording is frozen; to change it, withdraw and re-move.
+
+## Automatic emails
+
+Besides the sign-in link, the app sends three kinds of email, all from `MAIL_FROM`:
+
+- **Seconded** (to the mover): a director seconded their motion, so voting is open.
+- **Vote closed** (to every active member, voting or not): sent when an admin clicks "Close voting".
+  Result, tally, each director's vote, a link to the motion, and the written-consent PDF attached.
+  Reopening and closing again sends it again.
+- **Vote reminder** (to each voting director who hasn't voted): one email per director listing every
+  open motion still waiting on them, with links. A scheduled job (`vercel.json`, daily at 16:00 UTC,
+  which is 9 am PDT / 8 am PST) checks each morning: a director is reminded once a motion has been open
+  `REMINDER_AFTER_DAYS` (default 2) and again every `REMINDER_EVERY_DAYS` (default 3) until they vote
+  or the motion closes. Motions whose deadline has passed are skipped, since voting is locked then.
+  Every reminder is recorded (table `vote_reminders`) and summarized in the activity log.
+
+  An admin can also send the reminder immediately from the motion page ("Email a reminder to the N who
+  haven't voted"); that ignores the schedule and goes to everyone who hasn't voted on that motion.
+  Opening `/api/cron/reminders` in the browser while signed in as admin runs the scheduled check by
+  hand and shows who was emailed.
+
+  Vercel's free (Hobby) plan allows cron jobs that run once a day, and the run may land anywhere
+  within the scheduled hour. That is all this needs. If you want reminders more often than daily,
+  Vercel Pro allows any schedule; change `schedule` in `vercel.json`.
+
+If mail fails (for example the Resend key is missing or revoked), the vote, close, or reminder is still
+recorded and a `mail_failed` line appears in the activity log on the Admin page.
 
 ## What the PDF says, and why
 
@@ -116,4 +147,5 @@ Pushes to `main` deploy to production automatically.
 ## Optional later
 
 - Custom domain (vote.yubawatershedinstitute.org): Vercel > Settings > Domains, add a CNAME, update `APP_URL`.
-- Auto-close at deadline and email you the PDF: a small cron function; ask when you want it.
+- Auto-close at deadline: the reminder cron could also close motions whose deadline has passed and
+  send the close email; ask when you want it.

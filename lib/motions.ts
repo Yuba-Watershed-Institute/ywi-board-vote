@@ -1,6 +1,7 @@
 import { q, one, audit, type Motion, type Member, type Vote } from "./db";
 import { sendMail } from "./mail";
 import { appUrl } from "./auth";
+import { sendClosedNotice } from "./notify";
 
 export type MotionDetail = Motion & {
   drafter_name: string | null;
@@ -189,9 +190,14 @@ export async function recordEmailVote(admin: Member, motionId: number, memberId:
   await audit(admin.email, "vote_recorded_by_email", `#${motionId} ${director.email} ${choice}: ${note.trim()}`);
 }
 
+/** Admin closes voting. The board is then emailed the result with the written-consent PDF attached. */
 export async function closeMotion(admin: Member, motionId: number) {
-  await q("UPDATE motions SET status = 'closed', closed_at = now() WHERE id = $1 AND status = 'open'", [motionId]);
+  const closed = await one<{ id: number }>(
+    "UPDATE motions SET status = 'closed', closed_at = now() WHERE id = $1 AND status = 'open' RETURNING id", [motionId]);
+  if (!closed) return; // already closed (e.g. a double click): nothing to record and no second email
   await audit(admin.email, "motion_closed", `#${motionId}`);
+  const detail = await getMotion(motionId);
+  if (detail) await sendClosedNotice(detail); // logs its own failure; never undoes the close
 }
 
 export async function reopenMotion(admin: Member, motionId: number) {

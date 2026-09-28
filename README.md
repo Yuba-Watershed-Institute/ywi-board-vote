@@ -6,5 +6,5 @@ written-consent PDF for the minutes file.
 
 Live: https://ywi-board-vote.vercel.app (deploys from `main`)
 
-Stack: Next.js 15 (App Router, server actions), Postgres on Neon, Resend for sign-in email, pdf-lib.
+Stack: Next.js 15 (App Router, server actions), Postgres on Neon, Resend for sign-in, result, and reminder email, pdf-lib, Vercel Cron for the daily reminders.
 Deployed on Vercel. See SETUP.md for setup, operations, and the legal reasoning behind the PDF wording.

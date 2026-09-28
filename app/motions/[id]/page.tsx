@@ -3,17 +3,18 @@ import { notFound, redirect } from "next/navigation";
 import { currentMember } from "@/lib/auth";
 import { getMotion } from "@/lib/motions";
 import VoteButtons from "../vote-buttons";
-import { clearDeadlineAction, closeMotionAction, correctDetailsAction, editDraftAction, moveAction, recordEmailVoteAction, reopenMotionAction, secondAction, setDeadlineAction, withdrawAction } from "../../actions";
+import { clearDeadlineAction, closeMotionAction, correctDetailsAction, editDraftAction, moveAction, recordEmailVoteAction, remindAction, reopenMotionAction, secondAction, setDeadlineAction, withdrawAction } from "../../actions";
 
 export const dynamic = "force-dynamic";
 
 const fmt = (d: Date | string | null) => d ? new Date(d).toLocaleString("en-US", { timeZone: "America/Los_Angeles", dateStyle: "medium", timeStyle: "short" }) : "";
 const STATUS_LABEL: Record<string, string> = { draft: "Suggested draft", moved: "Moved, awaiting a second", open: "Open for voting", closed: "Closed", withdrawn: "Withdrawn" };
 
-export default async function MotionPage({ params }: { params: Promise<{ id: string }> }) {
+export default async function MotionPage({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<{ reminded?: string; unsent?: string }> }) {
   const member = await currentMember();
   if (!member) redirect("/");
   const { id } = await params;
+  const { reminded, unsent } = await searchParams;
   const m = await getMotion(Number(id));
   if (!m) notFound();
   const mine = m.voters.find((v) => v.id === member.id)?.choice ?? null;
@@ -25,6 +26,11 @@ export default async function MotionPage({ params }: { params: Promise<{ id: str
   return (
     <>
       <p className="small"><Link href="/motions">← All motions</Link></p>
+      {reminded !== undefined && (
+        <div className={`notice${Number(reminded) > 0 && !unsent ? " ok" : ""}`}>
+          {Number(reminded) === 0 ? "Nobody to remind: everyone has voted, or the deadline has passed." : unsent ? `Reminders for ${reminded} director${reminded === "1" ? "" : "s"} were logged but not emailed: mail isn't configured.` : `Reminder emailed to ${reminded} director${reminded === "1" ? "" : "s"} who ${reminded === "1" ? "hasn't" : "haven't"} voted.`}
+        </div>
+      )}
       <h1>{m.title}</h1>
       <div className="meta">
         <span className={`pill ${m.status === "open" ? "open" : m.status === "moved" || m.status === "draft" ? "pending" : "closed"}`}>{STATUS_LABEL[m.status]}</span>
@@ -169,8 +175,17 @@ export default async function MotionPage({ params }: { params: Promise<{ id: str
             ) : (
               <form action={reopenMotionAction}>{hidden("motion_id", m.id)}<button className="secondary">Reopen voting</button></form>
             )}
+            {m.status === "open" && !m.allVotesIn && !pastDeadline && (
+              <form action={remindAction}>{hidden("motion_id", m.id)}<button className="secondary">Email a reminder to the {m.tally.pending} who haven&apos;t voted</button></form>
+            )}
             {m.allVotesIn && m.status === "open" && <span className="muted small">All votes are in; you can close this.</span>}
           </div>
+          {m.status === "open" && (
+            <p className="muted small" style={{ marginTop: 8 }}>
+              Closing emails the whole roster the result with the written-consent PDF attached.
+              Directors who haven&apos;t voted are also reminded automatically each morning once a motion has been open a couple of days (see SETUP.md); the button sends one right now.
+            </p>
+          )}
           {m.status === "open" && (
             <form action={recordEmailVoteAction} className="stack" style={{ marginTop: 12 }}>
               {hidden("motion_id", m.id)}
