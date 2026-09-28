@@ -123,10 +123,12 @@ export async function secondMotion(member: Member, motionId: number, choice: Vot
   }
   await q(insertVote, [motionId, member.id, choice]);
   await audit(member.email, "vote", `#${motionId} ${choice} (with second)`);
+  // On a two-director board the mover's and seconder's votes may already be all of them.
+  const closedNow = await closeIfAllVotesIn(motionId, `${displayName(member)}'s second`);
 
   // Tell the mover voting is open. Mail failure must not undo the second.
   {
-    if (mover?.email) {
+    if (mover?.email && !closedNow) {
       const link = `${appUrl()}/motions/${motionId}`;
       const recorded = m.mover_choice ? `Your vote of ${m.mover_choice} was recorded when the second came in; you can change it until the motion closes.` : "You haven't voted yet.";
       try {
@@ -160,12 +162,14 @@ export async function castVote(member: Member, motionId: number, choice: Vote["c
   if (!motion) throw new Error("Motion not found.");
   if (motion.status !== "open") throw new Error("This motion is not open for voting.");
   if (motion.closes_at && new Date(motion.closes_at) < new Date()) throw new Error("The voting deadline has passed.");
+  const existing = await one<Vote>("SELECT * FROM votes WHERE motion_id = $1 AND member_id = $2", [motionId, member.id]);
   await q(
     `INSERT INTO votes (motion_id, member_id, choice) VALUES ($1,$2,$3)
      ON CONFLICT (motion_id, member_id) DO UPDATE SET choice = EXCLUDED.choice, cast_at = now(), source = 'app'`,
     [motionId, member.id, choice],
   );
   await audit(member.email, "vote", `#${motionId} ${choice}`);
+  if (!existing) await closeIfAllVotesIn(motionId, `${displayName(member)}'s vote`);
 }
 
 /**
@@ -188,16 +192,34 @@ export async function recordEmailVote(admin: Member, motionId: number, memberId:
     [motionId, memberId, choice],
   );
   await audit(admin.email, "vote_recorded_by_email", `#${motionId} ${director.email} ${choice}: ${note.trim()}`);
+  if (!existing) await closeIfAllVotesIn(motionId, `${displayName(director)}'s vote by email`);
 }
 
 /** Admin closes voting. The board is then emailed the result with the written-consent PDF attached. */
 export async function closeMotion(admin: Member, motionId: number) {
+  await finishClose(admin.email, motionId, "", `by ${displayName(admin)}`);
+}
+
+/**
+ * Voting closes by itself the moment the last voting director's vote is in, so nobody has to notice
+ * and click. Only a director's first vote on a motion triggers this, never a changed vote: after an
+ * admin reopens a motion so a vote can be changed, all votes are already in, and the change alone
+ * must not close it again. Returns true if the motion was closed here.
+ */
+async function closeIfAllVotesIn(motionId: number, trigger: string): Promise<boolean> {
+  const d = await getMotion(motionId);
+  if (!d || d.status !== "open" || !d.allVotesIn) return false;
+  await finishClose("system", motionId, `all votes in after ${trigger}`, "automatically, when the last director's vote came in");
+  return true;
+}
+
+async function finishClose(actor: string, motionId: number, auditDetail: string, how: string) {
   const closed = await one<{ id: number }>(
     "UPDATE motions SET status = 'closed', closed_at = now() WHERE id = $1 AND status = 'open' RETURNING id", [motionId]);
   if (!closed) return; // already closed (e.g. a double click): nothing to record and no second email
-  await audit(admin.email, "motion_closed", `#${motionId}`);
+  await audit(actor, "motion_closed", `#${motionId}${auditDetail ? ` (${auditDetail})` : ""}`);
   const detail = await getMotion(motionId);
-  if (detail) await sendClosedNotice(detail); // logs its own failure; never undoes the close
+  if (detail) await sendClosedNotice(detail, how); // logs its own failure; never undoes the close
 }
 
 export async function reopenMotion(admin: Member, motionId: number) {
