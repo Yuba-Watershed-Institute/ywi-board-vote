@@ -77,7 +77,7 @@ Motions have a life cycle: Suggested (draft) > Moved > Open for voting > Closed.
    (say the deadline passes with a director silent), an admin clicks "Close voting". Either way,
    everyone on the roster and the admins are emailed the result, the tally, and each director's vote.
    The written-consent PDF is not emailed: an admin downloads it from the motion page, the Secretary
-   signs it, and it is circulated by hand.
+   signs it, and it is filed with the minutes. Directors can download the record from the motion page.
 
    Each ballot is labelled for the minutes file when voting opens, numbered per year in the order
    voting opened: "2026 Consent 1", "2026 Consent 2", and so on. The label is on the motion page, in
@@ -99,7 +99,7 @@ Besides the sign-in link, the app sends three kinds of email, all from `MAIL_FRO
 - **Vote closed** (to every active member, voting or not, plus every address in `ADMIN_EMAILS` even
   if it is not on the roster): sent when voting closes, whether by itself on the last vote or by an
   admin's click. Result, tally, each director's vote, how it closed, and a link to the motion. The
-  PDF is deliberately not attached; the Secretary signs and circulates it. Reopening and closing again
+  PDF is deliberately not attached; the Secretary signs it and files it with the minutes. Reopening and closing again
   sends it again.
 - **Reminder** (to each voting director something is waiting on): one email per director listing the
   open motions they haven't voted on and the moved motions (by someone else) that still need a
